@@ -128,21 +128,11 @@
         transform: translateX(-50%) translateY(-6px);
         }
 
-        /* ✅ iOS/Android：父页面滚动锁（键盘弹出时尽量不让父页面被推上去）
-           常见做法：position: fixed + top 偏移保存滚动位置。[1](https://learn.microsoft.com/en-us/answers/questions/5420658/how-to-i-set-forms-to-share-outside-my-organizatio)[2](https://stackoverflow.com/questions/25098021/securityerror-blocked-a-frame-with-origin-from-accessing-a-cross-origin-frame) */
+        /* ✅ 父页面滚动锁（iOS 更稳：position: fixed + top 偏移保存滚动位置） */
         body.lock-scroll {
         position: fixed;
         overflow: hidden;
         width: 100%;
-        }
-        /* 让上方文字区域底部不额外留 20px 空隙 */
-        #topText {
-          padding-bottom: 0; /* 覆盖 .content 的 padding-bottom */
-        }
-        
-        /* 只针对 #topText 里最后一个 <p>（也就是 “Please scroll down...” 那句） */
-        #topText > p:last-child {
-          margin: 0 0 1px;   /* 下方只留 1px */
         }
     </style>
 </head>
@@ -222,12 +212,9 @@
         toast.classList.add('show');
 
         if (toastTimer) clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => {
-          toast.classList.remove('show');
-        }, 1800);
-      }
-
-      /* ✅ 复制逻辑：优先 Clipboard API（HTTPS 安全上下文），回退 async function copyFromInput(inputId, buttonEl) {
+       customize-app/form-submit-redirection)
+         execCommand 已不推荐，但可作为兼容兜底。[8](https://profile-sh.github.io/docs/projects/gh_pages.html) */
+      async function copyFromInput(inputId, buttonEl) {
         const input = document.getElementById(inputId);
         if (!input) return;
 
@@ -253,7 +240,6 @@
           const old = buttonEl.textContent;
           buttonEl.textContent = 'Copy failed';
           setTimeout(() => { buttonEl.textContent = old; }, 1500);
-          // showToast('⚠️ Copy failed. Please copy manually.');
         }
       }
 
@@ -264,9 +250,14 @@
         });
       });
 
-      /* ✅ 关键：iOS 键盘弹出导致父页面被自动推上去（你确认是 B：iframe 内输入）
-         工程解法：当检测到键盘出现时，锁住父页面滚动（position:fixed + top 偏移）。
-         许多 iOS 键盘/viewport 问题需要 JS workaround，且 VisualViewport 常被用作可靠信号。[2](https://stackoverflow.com/questions/25098021/securityerror-blocked-a-frame-with-origin-from-accessing-a-cross-origin-frame)[3](https://www.techbloat.com/4-methods-to-share-microsoft-forms-with-external-users.html) */
+      /* =========================================================
+         ✅ 关键修复：iOS 键盘多次弹出后仍会“推父页面”的问题
+         - 使用 VisualViewport.height + offsetTop 双信号判断键盘状态
+         - 用 maxVVH（历史最大 height）做基准，避免基准被“越变越小”
+         - 针对 offsetTop 不归零的 Safari bug 增加微小 scrollBy 纠正
+         VisualViewport 的 height/offsetTop 属于标准接口属性。[1](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport)
+         offsetTop 在键盘相关场景会变化且可能出现不复位 bug，实践中需 workaround。[3](https://iifx.dev/en/articles/460201403/debugging-ios-26-how-to-correct-fixed-positioning-post-keyboard-interaction)[4](https://developer.apple.com/forums/thread/800154)
+      ========================================================= */
 
       let savedScrollY = 0;
       let locked = false;
@@ -287,65 +278,102 @@
         locked = false;
       }
 
-      // 1) 只要用户开始与 iframe 交互，就先锁一次（键盘弹出前的预防）
-      if (frame) {
-        frame.addEventListener('pointerdown', lockBodyScroll, { passive: true });
-        frame.addEventListener('touchstart', lockBodyScroll, { passive: true });
+      // “正在表单交互”状态：无法拿到 iframe 内 focus，只能靠用户点到 iframe 作为近似。
+      let inFormInteraction = false;
+      let interactionTimer = null;
+      function markInFormInteraction() {
+        inFormInteraction = true;
+        if (interactionTimer) clearTimeout(interactionTimer);
+        interactionTimer = setTimeout(() => { inFormInteraction = false; }, 8000);
       }
 
-      // 2) 用 VisualViewport 识别键盘出现/消失（iOS 常见做法）
-      let baseVVH = null;        // 基准可视高度
-      let keyboardOpen = false;  // 键盘状态推断
+      if (frame) {
+        frame.addEventListener('pointerdown', () => { markInFormInteraction(); lockBodyScroll(); }, { passive: true });
+        frame.addEventListener('touchstart',  () => { markInFormInteraction(); lockBodyScroll(); }, { passive: true });
+      }
 
-      function setBaseVVH() {
-        if (!window.visualViewport) return;
-        baseVVH = window.visualViewport.height;
+      // VisualViewport：用 maxVVH 做基准更稳（避免第二次阈值失效）
+      let maxVVH = null;
+      let keyboardLikelyOpen = false;
+      let lastOffsetTop = 0;
+
+      function updateMaxVVH(vv) {
+        if (!vv) return;
+        if (maxVVH == null) maxVVH = vv.height;
+        maxVVH = Math.max(maxVVH, vv.height);
+      }
+
+      function vvIndicatesKeyboard(vv) {
+        if (!vv) return false;
+
+        updateMaxVVH(vv);
+
+        const heightDelta = maxVVH - vv.height;    // 键盘出现通常会让 visual viewport 变矮 [1](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport)
+        const offset = vv.offsetTop || 0;          // 键盘/聚焦时 offsetTop 往往变化 [1](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport)[5](https://stackoverflow.com/questions/43833049/how-to-make-fixed-content-go-above-ios-keyboard)
+
+        // 经验阈值：iOS/Android 都适用，iOS 有时 heightDelta 不够大，但 offsetTop 会明显变化
+        const byHeight = heightDelta > 90;
+        const byOffset = offset > 40;
+
+        return byHeight || byOffset;
+      }
+
+      function tryFixOffsetTopStuck(vv) {
+        if (!vv) return;
+        // 某些 iOS 版本会出现 offsetTop 收起键盘后不归零的问题，需要轻微滚动触发重算 [3](https://iifx.dev/en/articles/460201403/debugging-ios-26-how-to-correct-fixed-positioning-post-keyboard-interaction)[4](https://developer.apple.com/forums/thread/800154)
+        if (!keyboardLikelyOpen && vv.offsetTop && vv.offsetTop > 0) {
+          window.scrollBy(0, -1);
+          window.scrollBy(0, 1);
+        }
       }
 
       if (window.visualViewport) {
-        setBaseVVH();
+        const vv = window.visualViewport;
+
+        updateMaxVVH(vv);
+        lastOffsetTop = vv.offsetTop || 0;
 
         const onVVChange = () => {
-          const vv = window.visualViewport;
-          if (!vv || baseVVH == null) return;
+          // 每次变化都更新 maxVVH（只增不减）
+          updateMaxVVH(vv);
 
-          const current = vv.height;
-          const delta = baseVVH - current;
+          // 只在“正在和表单交互”或“已经判定键盘开着”时进行强干预，避免误伤普通滚动
+          const shouldAct = inFormInteraction || keyboardLikelyOpen;
 
-          // 键盘出现：可视高度明显变小（阈值 120px 可按机型微调）
-          if (delta > 120) {
-            keyboardOpen = true;
+          const nowKeyboard = vvIndicatesKeyboard(vv);
+
+          if (shouldAct && nowKeyboard) {
+            keyboardLikelyOpen = true;
             lockBodyScroll();
-            return;
-          }
-
-          // 键盘收起：高度恢复接近基准
-          if (keyboardOpen && Math.abs(delta) < 60) {
-            keyboardOpen = false;
+          } else if (keyboardLikelyOpen && !nowKeyboard) {
+            // 键盘收起：解锁并修复可能残留的 offsetTop
+            keyboardLikelyOpen = false;
             unlockBodyScroll();
-
-            // 收起后更新基准（地址栏/工具栏变化会影响基准高度）
-            setTimeout(setBaseVVH, 200);
+            setTimeout(() => tryFixOffsetTopStuck(vv), 50);
           }
+
+          // 记录 offsetTop 变化（辅助排查）
+          lastOffsetTop = vv.offsetTop || 0;
         };
 
-        window.visualViewport.addEventListener('resize', onVVChange);
-        window.visualViewport.addEventListener('scroll', onVVChange);
+        vv.addEventListener('resize', onVVChange);
+        vv.addEventListener('scroll', onVVChange);
 
-        // 设备旋转/尺寸变化：刷新基准
+        // 方向变化：重新建立 maxVVH（否则阈值会错）
         window.addEventListener('orientationchange', () => {
           setTimeout(() => {
             unlockBodyScroll();
-            keyboardOpen = false;
-            setBaseVVH();
-          }, 300);
+            keyboardLikelyOpen = false;
+            inFormInteraction = false;
+            maxVVH = vv.height; // 旋转后以当前作为新的“最大可视高度”起点
+          }, 350);
         });
       }
 
-      // 3) 用户点到 iframe 外（且键盘已收起）时确保解锁（避免“锁死”）
+      // 点击 iframe 外部：若键盘不在，允许解锁（避免锁死）
       document.addEventListener('pointerdown', (e) => {
         if (!frame) return;
-        if (!frame.contains(e.target) && !keyboardOpen) {
+        if (!frame.contains(e.target) && !keyboardLikelyOpen) {
           unlockBodyScroll();
         }
       }, { passive: true });
