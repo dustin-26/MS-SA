@@ -67,6 +67,16 @@
         .redirect-btn:hover { background-color: #005a9e; }
         
         .tip { color: #666; margin-top: 30px; font-size: 14px; line-height: 1.5; }
+
+        /* 让上方文字区域底部不额外留 20px 空隙 */
+        #topText {
+          padding-bottom: 0; /* 覆盖 .content 的 padding-bottom */
+        }
+        
+        /* 只针对 #topText 里最后一个 <p>（也就是 “Please scroll down...” 那句） */
+        #topText > p:last-child {
+          margin: 0 0 1px;   /* 下方只留 1px */
+        }
     </style>
 </head>
 <body>
