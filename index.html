@@ -26,13 +26,13 @@
         
         /* 1) 缩小标题与下一行文字的间距 */
         h3 { 
-        margin: 0 0 8px;   /* 原本浏览器默认会很大，这里改小 */
+        margin: 0 0 8px;
         line-height: 1.2;
         }
         
         /* 2) 给标题下那行说明文字一个可控的段落样式 */
         .subtitle {
-        margin: 0 0 12px;  /* 控制与下面内容的距离 */
+        margin: 0 0 12px;
         color: #333;
         line-height: 1.4;
         }
@@ -51,12 +51,12 @@
         margin: 12px 0; 
         color: #333; 
         font-size: 20px; 
-        line-height: 1.2;  /* 你之前设 1 会偏挤，也可能影响可读性 */
+        line-height: 1.2;
         }
         
         /* 4) 关键：把 p 的默认上下 margin 压小 */
         .event-info p {
-        margin: 1px 0;     /* 你想更紧可用 2px 0 或 0 */
+        margin: 1px 0;
         }
 
         /* ✅ 复制按钮布局 */
@@ -127,6 +127,23 @@
         opacity: 1;
         transform: translateX(-50%) translateY(-6px);
         }
+
+        /* ✅ iOS/Android：父页面滚动锁（键盘弹出时尽量不让父页面被推上去）
+           常见做法：position: fixed + top 偏移保存滚动位置。[1](https://learn.microsoft.com/en-us/answers/questions/5420658/how-to-i-set-forms-to-share-outside-my-organizatio)[2](https://stackoverflow.com/questions/25098021/securityerror-blocked-a-frame-with-origin-from-accessing-a-cross-origin-frame) */
+        body.lock-scroll {
+        position: fixed;
+        overflow: hidden;
+        width: 100%;
+        }
+        /* 让上方文字区域底部不额外留 20px 空隙 */
+        #topText {
+          padding-bottom: 0; /* 覆盖 .content 的 padding-bottom */
+        }
+        
+        /* 只针对 #topText 里最后一个 <p>（也就是 “Please scroll down...” 那句） */
+        #topText > p:last-child {
+          margin: 0 0 1px;   /* 下方只留 1px */
+        }
     </style>
 </head>
 <body>
@@ -153,7 +170,7 @@
 
     <!-- 已嵌入MS Form链接 -->
     <div class="form-container">
-        <iframe width="100%" height="600px" 
+        <iframe id="msFormFrame" width="100%" height="600px" 
                 src="https://forms.office.com/r/mKG0Lu64FY?origin=lprLink" 
                 frameborder="0" marginwidth="0" marginheight="0" 
                 style="border: none; max-width:100%;" allowfullscreen>
@@ -178,6 +195,8 @@
       const top = document.getElementById('topText');
       if (!top) return;
 
+      const frame = document.getElementById('msFormFrame');
+
       function isSelectingText() {
         const sel = window.getSelection && window.getSelection();
         return sel && sel.type === 'Range' && String(sel).length > 0;
@@ -188,10 +207,10 @@
         e.preventDefault();
       }, { passive: false });
 
-      // 手机：只在“未进行文字选择”时阻止滚动
+      // 手机：只在“未进行文字选择”时阻止滚动（不影响复制选区手柄）
       top.addEventListener('touchmove', function (e) {
-        if (isSelectingText()) return;   // 正在选中文字：放行，便于拖动选区手柄
-        e.preventDefault();              // 否则阻止该区域触发页面滚动
+        if (isSelectingText()) return;
+        e.preventDefault();
       }, { passive: false });
 
       /* ✅ Toast 工具函数 */
@@ -208,19 +227,16 @@
         }, 1800);
       }
 
-      /* ✅ 复制逻辑 */
-      async function copyFromInput(inputId, buttonEl) {
+      /* ✅ 复制逻辑：优先 Clipboard API（HTTPS 安全上下文），回退 async function copyFromInput(inputId, buttonEl) {
         const input = document.getElementById(inputId);
         if (!input) return;
 
         const text = input.value;
 
         try {
-          // 优先：Clipboard API（HTTPS/安全上下文 + 用户手势）[1](https://sqlpey.com/javascript/javascript-iframe-cross-origin-access/)
           if (navigator.clipboard && window.isSecureContext) {
             await navigator.clipboard.writeText(text);
           } else {
-            // 兜底：execCommand（已不推荐，但可兼容）[2](https://filerequestpro.com/articles/embed-microsoft-form)
             input.focus();
             input.select();
             input.setSelectionRange(0, text.length);
@@ -228,30 +244,112 @@
             if (!ok) throw new Error('execCommand copy failed');
           }
 
-          // 按钮反馈
           const old = buttonEl.textContent;
           buttonEl.textContent = 'Copied';
           setTimeout(() => { buttonEl.textContent = old; }, 1200);
 
-          // ✅ Toast（带图标）
           showToast('✅ Copied to clipboard!');
         } catch (err) {
           const old = buttonEl.textContent;
           buttonEl.textContent = 'Copy failed';
-          setTimeout(() => { buttonEl.textContent = old; }, 1200);
-
-          // 如需失败也提示，可打开下一行：
+          setTimeout(() => { buttonEl.textContent = old; }, 1500);
           // showToast('⚠️ Copy failed. Please copy manually.');
         }
       }
 
-      // 绑定所有 Copy 按钮
       const copyButtons = document.querySelectorAll('button[data-copy-target]');
       copyButtons.forEach(btn => {
         btn.addEventListener('click', function () {
           copyFromInput(btn.getAttribute('data-copy-target'), btn);
         });
       });
+
+      /* ✅ 关键：iOS 键盘弹出导致父页面被自动推上去（你确认是 B：iframe 内输入）
+         工程解法：当检测到键盘出现时，锁住父页面滚动（position:fixed + top 偏移）。
+         许多 iOS 键盘/viewport 问题需要 JS workaround，且 VisualViewport 常被用作可靠信号。[2](https://stackoverflow.com/questions/25098021/securityerror-blocked-a-frame-with-origin-from-accessing-a-cross-origin-frame)[3](https://www.techbloat.com/4-methods-to-share-microsoft-forms-with-external-users.html) */
+
+      let savedScrollY = 0;
+      let locked = false;
+
+      function lockBodyScroll() {
+        if (locked) return;
+        savedScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+        document.body.classList.add('lock-scroll');
+        document.body.style.top = `-${savedScrollY}px`;
+        locked = true;
+      }
+
+      function unlockBodyScroll() {
+        if (!locked) return;
+        document.body.classList.remove('lock-scroll');
+        document.body.style.top = '';
+        window.scrollTo(0, savedScrollY);
+        locked = false;
+      }
+
+      // 1) 只要用户开始与 iframe 交互，就先锁一次（键盘弹出前的预防）
+      if (frame) {
+        frame.addEventListener('pointerdown', lockBodyScroll, { passive: true });
+        frame.addEventListener('touchstart', lockBodyScroll, { passive: true });
+      }
+
+      // 2) 用 VisualViewport 识别键盘出现/消失（iOS 常见做法）
+      let baseVVH = null;        // 基准可视高度
+      let keyboardOpen = false;  // 键盘状态推断
+
+      function setBaseVVH() {
+        if (!window.visualViewport) return;
+        baseVVH = window.visualViewport.height;
+      }
+
+      if (window.visualViewport) {
+        setBaseVVH();
+
+        const onVVChange = () => {
+          const vv = window.visualViewport;
+          if (!vv || baseVVH == null) return;
+
+          const current = vv.height;
+          const delta = baseVVH - current;
+
+          // 键盘出现：可视高度明显变小（阈值 120px 可按机型微调）
+          if (delta > 120) {
+            keyboardOpen = true;
+            lockBodyScroll();
+            return;
+          }
+
+          // 键盘收起：高度恢复接近基准
+          if (keyboardOpen && Math.abs(delta) < 60) {
+            keyboardOpen = false;
+            unlockBodyScroll();
+
+            // 收起后更新基准（地址栏/工具栏变化会影响基准高度）
+            setTimeout(setBaseVVH, 200);
+          }
+        };
+
+        window.visualViewport.addEventListener('resize', onVVChange);
+        window.visualViewport.addEventListener('scroll', onVVChange);
+
+        // 设备旋转/尺寸变化：刷新基准
+        window.addEventListener('orientationchange', () => {
+          setTimeout(() => {
+            unlockBodyScroll();
+            keyboardOpen = false;
+            setBaseVVH();
+          }, 300);
+        });
+      }
+
+      // 3) 用户点到 iframe 外（且键盘已收起）时确保解锁（避免“锁死”）
+      document.addEventListener('pointerdown', (e) => {
+        if (!frame) return;
+        if (!frame.contains(e.target) && !keyboardOpen) {
+          unlockBodyScroll();
+        }
+      }, { passive: true });
+
     })();
     </script>
 </body>
