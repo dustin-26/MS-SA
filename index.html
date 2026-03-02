@@ -58,6 +58,42 @@
         .event-info p {
         margin: 1px 0;     /* 你想更紧可用 2px 0 或 0 */
         }
+
+        /* ✅ 复制按钮布局 */
+        .copy-row {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        align-items: stretch;
+        margin: 4px 0;
+        }
+
+        .copy-input {
+        width: 100%;
+        max-width: 420px;
+        font-size: 18px;
+        padding: 8px;
+        text-align: center;
+        box-sizing: border-box;
+        }
+
+        .copy-btn {
+        padding: 8px 12px;
+        font-size: 14px;
+        border: 1px solid #c9c9c9;
+        background: #ffffff;
+        border-radius: 6px;
+        cursor: pointer;
+        white-space: nowrap;
+        }
+
+        .copy-btn:hover {
+        background: #f2f2f2;
+        }
+
+        .copy-btn:active {
+        transform: translateY(1px);
+        }
         
         .redirect-btn {
         display: inline-block; margin-top: 20px; padding: 15px 30px;
@@ -68,14 +104,28 @@
         
         .tip { color: #666; margin-top: 30px; font-size: 14px; line-height: 1.5; }
 
-        /* 让上方文字区域底部不额外留 20px 空隙 */
-        #topText {
-          padding-bottom: 0; /* 覆盖 .content 的 padding-bottom */
+        /* ✅ Toast (Copy success) */
+        #toast {
+        position: fixed;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%);
+        background: rgba(17, 24, 39, 0.92);
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+        line-height: 1.2;
+        box-shadow: 0 10px 25px rgba(0,0,0,.18);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .18s ease, transform .18s ease;
+        z-index: 9999;
         }
-        
-        /* 只针对 #topText 里最后一个 <p>（也就是 “Please scroll down...” 那句） */
-        #topText > p:last-child {
-          margin: 0 0 1px;   /* 下方只留 1px */
+
+        #toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(-6px);
         }
     </style>
 </head>
@@ -86,13 +136,18 @@
         
         <div class="event-info">
             <p><strong>Event Code:</strong></p>
-            <input value="0001" readonly onclick="this.select()" aria-label="Event Code"
-                   style="width:100%;max-width:420px;font-size:18px;padding:8px;text-align:center;">
+            <div class="copy-row">
+                <input id="eventCodeInput" value="0001" readonly onclick="this.select()" aria-label="Event Code" class="copy-input">
+                <button type="button" class="copy-btn" data-copy-target="eventCodeInput">Copy</button>
+            </div>
 
             <p><strong>URL for M365 Copilot:</strong></p>
-            <input value="m365.cloud.microsoft" readonly onclick="this.select()" aria-label="URL for M365 Copilot"
-                   style="width:100%;max-width:420px;font-size:18px;padding:8px;text-align:center;">
+            <div class="copy-row">
+                <input id="urlInput" value="m365.cloud.microsoft" readonly onclick="this.select()" aria-label="URL for M365 Copilot" class="copy-input">
+                <button type="button" class="copy-btn" data-copy-target="urlInput">Copy</button>
+            </div>
         </div>
+
         <p>Please scroll down after submitting.</p>
     </div>
 
@@ -115,6 +170,9 @@
         <p class="tip">If the form fails to load, please visit the original form link: <a href="https://forms.office.com/r/mKG0Lu64FY?origin=lprLink" target="_blank">Click here</a></p>
     </div>
 
+    <!-- ✅ Toast 容器 -->
+    <div id="toast" aria-live="polite" aria-atomic="true"></div>
+
     <script>
     (function () {
       const top = document.getElementById('topText');
@@ -135,6 +193,65 @@
         if (isSelectingText()) return;   // 正在选中文字：放行，便于拖动选区手柄
         e.preventDefault();              // 否则阻止该区域触发页面滚动
       }, { passive: false });
+
+      /* ✅ Toast 工具函数 */
+      let toastTimer = null;
+      function showToast(message) {
+        const toast = document.getElementById('toast');
+        if (!toast) return;
+        toast.textContent = message;
+        toast.classList.add('show');
+
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toast.classList.remove('show');
+        }, 1800);
+      }
+
+      /* ✅ 复制逻辑 */
+      async function copyFromInput(inputId, buttonEl) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+
+        const text = input.value;
+
+        try {
+          // 优先：Clipboard API（HTTPS/安全上下文 + 用户手势）[1](https://sqlpey.com/javascript/javascript-iframe-cross-origin-access/)
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            // 兜底：execCommand（已不推荐，但可兼容）[2](https://filerequestpro.com/articles/embed-microsoft-form)
+            input.focus();
+            input.select();
+            input.setSelectionRange(0, text.length);
+            const ok = document.execCommand('copy');
+            if (!ok) throw new Error('execCommand copy failed');
+          }
+
+          // 按钮反馈
+          const old = buttonEl.textContent;
+          buttonEl.textContent = 'Copied';
+          setTimeout(() => { buttonEl.textContent = old; }, 1200);
+
+          // ✅ Toast（带图标）
+          showToast('✅ Copied to clipboard!');
+        } catch (err) {
+          const old = buttonEl.textContent;
+          buttonEl.textContent = 'Copy failed';
+          setTimeout(() => { buttonEl.textContent = old; }, 1200);
+
+          // 如需失败也提示，可打开下一行：
+          // showToast('⚠️ Copy failed. Please copy manually.');
+        }
+      }
+
+      // 绑定所有 Copy 按钮
+      const copyButtons = document.querySelectorAll('button[data-copy-target]');
+      copyButtons.forEach(btn => {
+        btn.addEventListener('click', function () {
+          copyFromInput(btn.getAttribute('data-copy-target'), btn);
+        });
+      });
     })();
     </script>
 </body>
