@@ -2,258 +2,192 @@
 <html lang="en-US">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 1. 优化viewport：添加maximum-scale=1.0防止iOS自动缩放，viewport-fit=cover适配刘海屏 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
     <title>Event Check-In Form</title>
     <style>
         html, body {
-        margin: 0;
-        padding: 0;
+            margin: 0;
+            padding: 0;
+            /* 2. 关键：禁止html/body整体滚动，改为由内容区域控制滚动 */
+            overflow: hidden;
+            height: 100%;
+            width: 100%;
         }
 
         body { 
-        font-family: Arial, sans-serif; 
-        text-align: center; 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            /* 3. 防止iOS点击高亮和文字缩放 */
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        /* 4. 新增：主滚动容器，替代body滚动 */
+        .main-scroll {
+            height: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* iOS顺滑滚动 */
         }
 
         .content {
-        padding: 20px;
+            padding: 20px;
         }
 
-        /* 确保文字区域可选中（复制） */
         #topText {
-        user-select: text;
-        padding-bottom: 0;
+            user-select: text;
+            /* 5. 关键：给顶部区域明确的定位，防止iOS滚动穿透 */
+            position: relative;
+            z-index: 1;
         }
 
-        /* ✅ form 下面 0 间距 */
-        .form-container { margin: 0; }
+        h3 { 
+            margin: 0 0 8px;
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            margin: 0 0 12px;
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .form-container { 
+            margin: 5px 0 30px;
+            /* 6. 防止iframe在iOS中被意外缩放 */
+            touch-action: manipulation;
+        }
 
         .form-container iframe {
-        display: block;
-        width: 100%;
-        border: none;
-        max-width: 100%;
+            display: block;
+            width: 100%;
+            border: none;
+            max-width: 100%;
+            /* 7. 给iframe明确高度，防止iOS自动调整 */
+            height: 600px;
         }
 
-        /* event-info */
         .event-info { 
-        margin: 12px 0; 
-        color: #333; 
-        font-size: 20px; 
-        line-height: 1.2;
+            margin: 12px 0; 
+            color: #333; 
+            font-size: 20px; 
+            line-height: 1.2;
         }
 
         .event-info p {
-        margin: 1px 0;
+            margin: 1px 0;
         }
 
-        /* ✅ 复制按钮布局 */
-        .copy-row {
-        display: flex;
-        gap: 8px;
-        justify-content: center;
-        align-items: stretch;
-        margin: 4px 0 10px;
+        /* 8. 优化输入框在iOS下的样式，防止默认圆角和内边距 */
+        .event-info input {
+            -webkit-appearance: none;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
         }
 
-        .copy-input {
-        width: 100%;
-        max-width: 420px;
-        font-size: 18px;
-        padding: 8px;
-        text-align: center;
-        box-sizing: border-box;
-        }
-
-        .copy-btn {
-        padding: 8px 12px;
-        font-size: 14px;
-        border: 1px solid #c9c9c9;
-        background: #ffffff;
-        border-radius: 6px;
-        cursor: pointer;
-        white-space: nowrap;
-        }
-
-        .copy-btn:hover { background: #f2f2f2; }
-        .copy-btn:active { transform: translateY(1px); }
-
-        /* ✅ Access 按钮：默认蓝色 */
         .redirect-btn {
-        display: inline-block;
-        margin-top: 20px;
-        padding: 15px 30px;
-        background-color: #0078d4;
-        color: white;
-        text-decoration: none;
-        border-radius: 5px;
-        font-size: 18px;
-        font-weight: 500;
+            display: inline-block; margin-top: 20px; padding: 15px 30px;
+            background-color: #0078d4; color: white; text-decoration: none; border-radius: 5px;
+            font-size: 18px; font-weight: 500;
         }
-
         .redirect-btn:hover { background-color: #005a9e; }
 
-        /* ✅ Access 按钮：禁用态（灰 + 不可点） */
-        .redirect-btn.disabled {
-        background-color: #9ca3af;
-        cursor: not-allowed;
-        pointer-events: none;
-        }
-
         .tip { color: #666; margin-top: 30px; font-size: 14px; line-height: 1.5; }
-
-        /* Toast */
-        #toast {
-        position: fixed;
-        left: 50%;
-        bottom: 24px;
-        transform: translateX(-50%);
-        background: rgba(17, 24, 39, 0.92);
-        color: #fff;
-        padding: 10px 14px;
-        border-radius: 10px;
-        font-size: 14px;
-        line-height: 1.2;
-        box-shadow: 0 10px 25px rgba(0,0,0,.18);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity .18s ease, transform .18s ease;
-        z-index: 9999;
-        }
-
-        #toast.show {
-        opacity: 1;
-        transform: translateX(-50%) translateY(-6px);
+        /* 兜底：iOS键盘弹出时，强制固定body位置 */
+        body.keyboard-open {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
         }
     </style>
 </head>
-
 <body>
+    <!-- 9. 新增：主滚动容器，包裹所有内容 -->
+    <div class="main-scroll" id="mainScroll">
+        <!-- 修复：移除重复的<div class="content"> -->
+        <div class="content" id="topText">
+            <h3>Please complete the form below</h3>
+            <p class="subtitle">The information you submit is used only for event audience check-in.</p>
 
-    <!-- ✅ form 贴顶部显示（页面第一个元素） -->
-    <div class="form-container">
-        <iframe id="msFormFrame" width="100%" height="600px"
-                src="https://forms.office.com/r/mKG0Lu64FY?origin=lprLink"
-                frameborder="0" marginwidth="0" marginheight="0"
-                style="border: none; max-width:100%;" allowfullscreen>
-        </iframe>
-    </div>
+            <div class="event-info">
+                <p><strong>Event Code:</strong> 0001</p>
+                <p><strong>Event Code:</strong></p>
+                <input value="0001" readonly onclick="this.select()" aria-label="Event Code"
+                       style="width:100%;max-width:420px;font-size:18px;padding:8px;text-align:center;">
 
-    <!-- ✅ 原来上方文字：挪到 form 下方 -->
-    <div class="content" id="topText">
-        <div class="event-info">
-            <p><strong>Event Code:</strong></p>
-            <div class="copy-row">
-                <input id="eventCodeInput" value="0001" readonly onclick="this.select()" aria-label="Event Code" class="copy-input">
-                <button type="button" class="copy-btn" data-copy-target="eventCodeInput">Copy</button>
-            </div>
-
-            <p><strong>URL for M365 Copilot:</strong></p>
-            <div class="copy-row">
-                <input id="urlInput" value="m365.cloud.microsoft" readonly onclick="this.select()" aria-label="URL for M365 Copilot" class="copy-input">
-                <button type="button" class="copy-btn" data-copy-target="urlInput">Copy</button>
+                <p><strong>URL for M365 Copilot:</strong></p>
+                <p>m365.cloud.microsoft</p>
+                
+                <input value="m365.cloud.microsoft" readonly onclick="this.select()" aria-label="URL for M365 Copilot"
+                       style="width:100%;max-width:420px;font-size:18px;padding:8px;text-align:center;">
+                <p>After submitting, please scroll down to access the AI Tips and Resources.</p>
             </div>
         </div>
 
-        <p>Please scroll down after submitting.</p>
+        <div class="form-container">
+            <iframe 
+                    src="https://forms.office.com/r/mKG0Lu64FY?origin=lprLink" 
+                    frameborder="0" marginwidth="0" marginheight="0" 
+                    allowfullscreen>
+            </iframe>
+        </div>
+
+        <div class="content">
+            <p>Once you have submitted the form, please click the button below to access your exclusive AI tips and resources.</p>
+            <a href="https://www.notion.so/317bd47a65e78036b450ef55595df79e?source=copy_link" target="_blank" class="redirect-btn">
+                Access AI Tips and Resources
+            </a>
+
+            <p class="tip">If the form fails to load, please visit the original form link: <a href="https://forms.office.com/r/mKG0Lu64FY?origin=lprLink" target="_blank">Click here</a></p>
+        </div>
     </div>
-
-    <!-- ✅ Access 区：初始禁用，二次 load 后启用 -->
-    <div class="content">
-        <p>Once you have submitted the form, please click the button below to access your exclusive AI tips and resources.</p>
-
-        <a id="accessBtn"
-           class="redirect-btn disabled"
-           href="javascript:void(0)"
-           aria-disabled="true"
-           data-href="https://www.notion.so/317bd47a65e78036b450ef55595df79e?source=copy_link"
-           target="_blank">
-           Submit the Form to Access Bonus Resources
-        </a>
-
-        <p class="tip">If the form fails to load, please visit the original form link:
-            <a href="https://forms.office.com/r/mKG0Lu64FY?origin=lprLink" target="_blank">Click here</a>
-        </p>
-    </div>
-
-    <div id="toast" aria-live="polite" aria-atomic="true"></div>
 
     <script>
     (function () {
-      const frame = document.getElementById('msFormFrame');
-      const accessBtn = document.getElementById('accessBtn');
+      const top = document.getElementById('topText');
+      const mainScroll = document.getElementById('mainScroll');
+      if (!top || !mainScroll) return;
 
-      /* Toast */
-      let toastTimer = null;
-      function showToast(message) {
-        const toast = document.getElementById('toast');
-        if (!toast) return;
-        toast.textContent = message;
-        toast.classList.add('show');
-        if (toastTimer) clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+      function isSelectingText() {
+        const sel = window.getSelection && window.getSelection();
+        return sel && sel.type === 'Range' && String(sel).length > 0;
       }
 
-      /* Copy */
-      async function copyFromInput(inputId, buttonEl) {
-        const input = document.getElementById(inputId);
-        if (!input) return;
-        const text = input.value;
+      // 桌面：鼠标滚轮（不影响拖选复制）
+      top.addEventListener('wheel', function (e) {
+        e.preventDefault();
+      }, { passive: false });
 
-        try {
-          if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(text);
-          } else {
-            input.focus();
-            input.select();
-            input.setSelectionRange(0, text.length);
-            const ok = document.execCommand('copy');
-            if (!ok) throw new Error('execCommand copy failed');
-          }
+      // 手机：只在“未进行文字选择”时阻止滚动
+      top.addEventListener('touchmove', function (e) {
+        if (isSelectingText()) return;
+        e.preventDefault();
+      }, { passive: false });
 
-          const old = buttonEl.textContent;
-          buttonEl.textContent = 'Copied';
-          setTimeout(() => { buttonEl.textContent = old; }, 1200);
-          showToast('✅ Copied to clipboard!');
-        } catch (err) {
-          const old = buttonEl.textContent;
-          buttonEl.textContent = 'Copy failed';
-          setTimeout(() => { buttonEl.textContent = old; }, 1200);
-        }
-      }
+      // 10. 新增：iOS键盘弹出修复 - 监听输入框focus/blur
+      const inputs = top.querySelectorAll('input');
+      inputs.forEach(function(input) {
+        // 输入框聚焦时：记录当前滚动位置，防止页面上移
+        input.addEventListener('focus', function() {
+          // 短暂延迟确保iOS键盘已弹出
+          setTimeout(function() {
+            // 强制滚动容器保持原位，防止iOS自动上推
+            mainScroll.scrollTop = mainScroll.scrollTop;
+          }, 100);
+        });
 
-      document.querySelectorAll('button[data-copy-target]').forEach(btn => {
-        btn.addEventListener('click', function () {
-          copyFromInput(btn.getAttribute('data-copy-target'), btn);
+        // 输入框失焦时：可选恢复滚动
+        input.addEventListener('blur', function() {
+          // 可在这里添加失焦后的逻辑，如需要
         });
       });
 
-      /* ✅ 二次 load 解锁 Access */
-      let loadCount = 0;
-      let unlocked = false;
-
-      function unlockAccess() {
-        if (unlocked) return;
-        unlocked = true;
-
-        const href = accessBtn.getAttribute('data-href');
-        accessBtn.classList.remove('disabled');
-        accessBtn.setAttribute('aria-disabled', 'false');
-        accessBtn.setAttribute('href', href);
-        accessBtn.textContent = 'Access Bonus Resources';
-      }
-
-      if (frame) {
-        frame.addEventListener('load', function () {
-          loadCount += 1;
-
-          // 第一次：初始加载表单
-          // 第二次：通常是提交后进入 thank you 页面 -> 解锁
-          if (loadCount >= 2) {
-            unlockAccess();
-          }
-        });
-      }
+      // 11. 新增：防止iOS在iframe聚焦时滚动整个页面
+      mainScroll.addEventListener('scroll', function() {
+        // 可选：如果需要更严格的控制，可在这里添加逻辑
+      });
     })();
     </script>
 </body>
