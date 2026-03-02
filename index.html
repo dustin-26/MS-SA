@@ -2,14 +2,12 @@
 <html lang="en-US">
 <head>
     <meta charset="UTF-8">
-    <!-- 1. 优化viewport：添加maximum-scale=1.0防止iOS自动缩放，viewport-fit=cover适配刘海屏 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
     <title>Event Check-In Form</title>
     <style>
         html, body {
             margin: 0;
             padding: 0;
-            /* 2. 关键：禁止html/body整体滚动，改为由内容区域控制滚动 */
             overflow: hidden;
             height: 100%;
             width: 100%;
@@ -18,16 +16,14 @@
         body { 
             font-family: Arial, sans-serif; 
             text-align: center; 
-            /* 3. 防止iOS点击高亮和文字缩放 */
             -webkit-tap-highlight-color: transparent;
             -webkit-text-size-adjust: 100%;
         }
 
-        /* 4. 新增：主滚动容器，替代body滚动 */
         .main-scroll {
             height: 100%;
             overflow-y: auto;
-            -webkit-overflow-scrolling: touch; /* iOS顺滑滚动 */
+            -webkit-overflow-scrolling: touch;
         }
 
         .content {
@@ -36,25 +32,12 @@
 
         #topText {
             user-select: text;
-            /* 5. 关键：给顶部区域明确的定位，防止iOS滚动穿透 */
             position: relative;
             z-index: 1;
         }
 
-        h3 { 
-            margin: 0 0 8px;
-            line-height: 1.2;
-        }
-
-        .subtitle {
-            margin: 0 0 12px;
-            color: #333;
-            line-height: 1.4;
-        }
-
         .form-container { 
             margin: 5px 0 30px;
-            /* 6. 防止iframe在iOS中被意外缩放 */
             touch-action: manipulation;
         }
 
@@ -63,10 +46,10 @@
             width: 100%;
             border: none;
             max-width: 100%;
-            /* 7. 给iframe明确高度，防止iOS自动调整 */
             height: 600px;
         }
 
+        /* 优化event-info布局，适配复制按钮 */
         .event-info { 
             margin: 12px 0; 
             color: #333; 
@@ -78,12 +61,55 @@
             margin: 1px 0;
         }
 
-        /* 8. 优化输入框在iOS下的样式，防止默认圆角和内边距 */
+        /* 新增：输入框+复制按钮的容器 */
+        .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin: 15px auto;
+            max-width: 520px;
+            width: 100%;
+        }
+
         .event-info input {
             -webkit-appearance: none;
             border-radius: 4px;
             border: 1px solid #ccc;
             box-sizing: border-box;
+            flex: 1;
+            font-size: 18px;
+            padding: 10px;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        /* 复制成功时的输入框样式 */
+        .event-info input.copied {
+            border-color: #107c10;
+            background-color: #f0fff0;
+        }
+
+        /* 复制按钮样式 */
+        .copy-btn {
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.2s;
+        }
+
+        .copy-btn:hover {
+            background-color: #005a9e;
+        }
+
+        .copy-btn:active {
+            background-color: #004578;
         }
 
         .redirect-btn {
@@ -94,34 +120,26 @@
         .redirect-btn:hover { background-color: #005a9e; }
 
         .tip { color: #666; margin-top: 30px; font-size: 14px; line-height: 1.5; }
-        /* 兜底：iOS键盘弹出时，强制固定body位置 */
-        body.keyboard-open {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-        }
     </style>
 </head>
 <body>
-    <!-- 9. 新增：主滚动容器，包裹所有内容 -->
     <div class="main-scroll" id="mainScroll">
-        <!-- 修复：移除重复的<div class="content"> -->
         <div class="content" id="topText">
-            <h3>Please complete the form below</h3>
-            <p class="subtitle">The information you submit is used only for event audience check-in.</p>
-
             <div class="event-info">
-                <p><strong>Event Code:</strong> 0001</p>
+                <!-- Event Code 输入框+复制按钮 -->
                 <p><strong>Event Code:</strong></p>
-                <input value="0001" readonly onclick="this.select()" aria-label="Event Code"
-                       style="width:100%;max-width:420px;font-size:18px;padding:8px;text-align:center;">
+                <div class="input-group">
+                    <input type="text" value="0001" readonly id="eventCodeInput" aria-label="Event Code">
+                    <button class="copy-btn" onclick="copyToClipboard('eventCodeInput', this)">Copy</button>
+                </div>
 
+                <!-- M365 Copilot URL 输入框+复制按钮 -->
                 <p><strong>URL for M365 Copilot:</strong></p>
-                <p>m365.cloud.microsoft</p>
-                
-                <input value="m365.cloud.microsoft" readonly onclick="this.select()" aria-label="URL for M365 Copilot"
-                       style="width:100%;max-width:420px;font-size:18px;padding:8px;text-align:center;">
+                <div class="input-group">
+                    <input type="text" value="m365.cloud.microsoft" readonly id="copilotUrlInput" aria-label="URL for M365 Copilot">
+                    <button class="copy-btn" onclick="copyToClipboard('copilotUrlInput', this)">Copy</button>
+                </div>
+
                 <p>After submitting, please scroll down to access the AI Tips and Resources.</p>
             </div>
         </div>
@@ -145,6 +163,62 @@
     </div>
 
     <script>
+    // 复制功能函数
+    function copyToClipboard(inputId, button) {
+        const input = document.getElementById(inputId);
+        const originalValue = input.value;
+        const originalPlaceholder = input.placeholder;
+
+        // 尝试使用现代Clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(originalValue).then(function() {
+                showCopySuccess(input, button);
+            }).catch(function() {
+                // 如果Clipboard API失败，回退到传统方法
+                fallbackCopy(input, button);
+            });
+        } else {
+            // 回退到传统方法
+            fallbackCopy(input, button);
+        }
+    }
+
+    // 传统复制方法（兼容旧浏览器）
+    function fallbackCopy(input, button) {
+        input.select();
+        input.setSelectionRange(0, 99999); // 兼容移动设备
+        try {
+            document.execCommand('copy');
+            showCopySuccess(input, button);
+        } catch (err) {
+            console.error('复制失败:', err);
+            alert('复制失败，请手动复制');
+        }
+    }
+
+    // 显示复制成功提示
+    function showCopySuccess(input, button) {
+        const originalValue = input.value;
+        const originalBtnText = button.textContent;
+
+        // 输入框显示成功提示
+        input.value = 'Copied!';
+        input.classList.add('copied');
+
+        // 按钮也可显示成功状态（可选）
+        button.textContent = 'Copied!';
+        button.style.backgroundColor = '#107c10';
+
+        // 1秒后恢复原状
+        setTimeout(function() {
+            input.value = originalValue;
+            input.classList.remove('copied');
+            button.textContent = originalBtnText;
+            button.style.backgroundColor = ''; // 恢复原背景色
+        }, 1000);
+    }
+
+    // 原有滚动控制代码
     (function () {
       const top = document.getElementById('topText');
       const mainScroll = document.getElementById('mainScroll');
@@ -155,38 +229,22 @@
         return sel && sel.type === 'Range' && String(sel).length > 0;
       }
 
-      // 桌面：鼠标滚轮（不影响拖选复制）
       top.addEventListener('wheel', function (e) {
         e.preventDefault();
       }, { passive: false });
 
-      // 手机：只在“未进行文字选择”时阻止滚动
       top.addEventListener('touchmove', function (e) {
         if (isSelectingText()) return;
         e.preventDefault();
       }, { passive: false });
 
-      // 10. 新增：iOS键盘弹出修复 - 监听输入框focus/blur
       const inputs = top.querySelectorAll('input');
       inputs.forEach(function(input) {
-        // 输入框聚焦时：记录当前滚动位置，防止页面上移
         input.addEventListener('focus', function() {
-          // 短暂延迟确保iOS键盘已弹出
           setTimeout(function() {
-            // 强制滚动容器保持原位，防止iOS自动上推
             mainScroll.scrollTop = mainScroll.scrollTop;
           }, 100);
         });
-
-        // 输入框失焦时：可选恢复滚动
-        input.addEventListener('blur', function() {
-          // 可在这里添加失焦后的逻辑，如需要
-        });
-      });
-
-      // 11. 新增：防止iOS在iframe聚焦时滚动整个页面
-      mainScroll.addEventListener('scroll', function() {
-        // 可选：如果需要更严格的控制，可在这里添加逻辑
       });
     })();
     </script>
