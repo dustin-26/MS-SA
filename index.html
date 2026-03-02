@@ -26,8 +26,9 @@
             -webkit-overflow-scrolling: touch;
         }
 
+        /* 1. 大幅减少内容区域的padding */
         .content {
-            padding: 20px;
+            padding: 10px 20px 5px; /* 上:10px, 左右:20px, 下:5px */
         }
 
         #topText {
@@ -37,7 +38,7 @@
         }
 
         .form-container { 
-            margin: 5px 0 30px;
+            margin: 0 0 20px; /* 减少表单容器的上下间距 */
             touch-action: manipulation;
         }
 
@@ -49,25 +50,25 @@
             height: 600px;
         }
 
-        /* 优化event-info布局，适配复制按钮 */
+        /* 2. 大幅压缩event-info的间距 */
         .event-info { 
-            margin: 12px 0; 
+            margin: 0; /* 移除默认margin */
             color: #333; 
-            font-size: 20px; 
-            line-height: 1.2;
+            font-size: 18px; /* 稍微缩小字体 */
+            line-height: 1.1;
         }
 
         .event-info p {
-            margin: 1px 0;
+            margin: 3px 0; /* 极小的段落间距 */
         }
 
-        /* 新增：输入框+复制按钮的容器 */
+        /* 3. 压缩输入框组的间距 */
         .input-group {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
-            margin: 15px auto;
+            gap: 8px;
+            margin: 8px auto; /* 减少上下margin */
             max-width: 520px;
             width: 100%;
         }
@@ -78,26 +79,24 @@
             border: 1px solid #ccc;
             box-sizing: border-box;
             flex: 1;
-            font-size: 18px;
-            padding: 10px;
+            font-size: 16px; /* 缩小输入框字体 */
+            padding: 8px; /* 减少输入框内边距 */
             text-align: center;
             transition: border-color 0.2s;
         }
 
-        /* 复制成功时的输入框样式 */
         .event-info input.copied {
             border-color: #107c10;
             background-color: #f0fff0;
         }
 
-        /* 复制按钮样式 */
         .copy-btn {
             background-color: #0078d4;
             color: white;
             border: none;
             border-radius: 4px;
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 8px 16px; /* 缩小按钮内边距 */
+            font-size: 14px; /* 缩小按钮字体 */
             font-weight: 500;
             cursor: pointer;
             white-space: nowrap;
@@ -113,13 +112,13 @@
         }
 
         .redirect-btn {
-            display: inline-block; margin-top: 20px; padding: 15px 30px;
+            display: inline-block; margin-top: 15px; padding: 12px 25px; /* 缩小按钮 */
             background-color: #0078d4; color: white; text-decoration: none; border-radius: 5px;
-            font-size: 18px; font-weight: 500;
+            font-size: 16px; font-weight: 500;
         }
         .redirect-btn:hover { background-color: #005a9e; }
 
-        .tip { color: #666; margin-top: 30px; font-size: 14px; line-height: 1.5; }
+        .tip { color: #666; margin-top: 20px; font-size: 13px; line-height: 1.4; }
     </style>
 </head>
 <body>
@@ -140,7 +139,7 @@
                     <button class="copy-btn" onclick="copyToClipboard('copilotUrlInput', this)">Copy</button>
                 </div>
 
-                <p>After submitting, please scroll down to access the AI Tips and Resources.</p>
+                <p style="margin-top: 10px; font-size: 14px;">After submitting, please scroll down to access the Bonus AI Resources.</p>
             </div>
         </div>
 
@@ -153,9 +152,9 @@
         </div>
 
         <div class="content">
-            <p>Once you have submitted the form, please click the button below to access your exclusive AI tips and resources.</p>
+            <p style="margin: 0 0 10px; font-size: 15px;">Please click the button below to access your exclusive AI tips and resources.</p>
             <a href="https://www.notion.so/317bd47a65e78036b450ef55595df79e?source=copy_link" target="_blank" class="redirect-btn">
-                Access AI Tips and Resources
+                Access Bonus AI Resources
             </a>
 
             <p class="tip">If the form fails to load, please visit the original form link: <a href="https://forms.office.com/r/mKG0Lu64FY?origin=lprLink" target="_blank">Click here</a></p>
@@ -169,52 +168,44 @@
         const originalValue = input.value;
         const originalPlaceholder = input.placeholder;
 
-        // 尝试使用现代Clipboard API
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(originalValue).then(function() {
                 showCopySuccess(input, button);
             }).catch(function() {
-                // 如果Clipboard API失败，回退到传统方法
                 fallbackCopy(input, button);
             });
         } else {
-            // 回退到传统方法
             fallbackCopy(input, button);
         }
     }
 
-    // 传统复制方法（兼容旧浏览器）
     function fallbackCopy(input, button) {
         input.select();
-        input.setSelectionRange(0, 99999); // 兼容移动设备
+        input.setSelectionRange(0, 99999);
         try {
             document.execCommand('copy');
             showCopySuccess(input, button);
         } catch (err) {
-            console.error('复制失败:', err);
-            alert('复制失败，请手动复制');
+            console.error('Failed to copy:', err);
+            alert('Failed to copy, please do so manually.');
         }
     }
 
-    // 显示复制成功提示
     function showCopySuccess(input, button) {
         const originalValue = input.value;
         const originalBtnText = button.textContent;
 
-        // 输入框显示成功提示
         input.value = 'Copied!';
         input.classList.add('copied');
 
-        // 按钮也可显示成功状态（可选）
         button.textContent = 'Copied!';
         button.style.backgroundColor = '#107c10';
 
-        // 1秒后恢复原状
         setTimeout(function() {
             input.value = originalValue;
             input.classList.remove('copied');
             button.textContent = originalBtnText;
-            button.style.backgroundColor = ''; // 恢复原背景色
+            button.style.backgroundColor = '';
         }, 1000);
     }
 
