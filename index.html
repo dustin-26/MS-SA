@@ -12,36 +12,35 @@
             height: 100%;
             width: 100%;
         }
-
+        
         body { 
             font-family: Arial, sans-serif; 
             text-align: center; 
             -webkit-tap-highlight-color: transparent;
             -webkit-text-size-adjust: 100%;
         }
-
+        
         .main-scroll {
             height: 100%;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
         }
-
-        /* 1. 大幅减少内容区域的padding */
+        
         .content {
-            padding: 10px 20px 5px; /* 上:10px, 左右:20px, 下:5px */
+            padding: 10px 20px 5px;
         }
-
+        
         #topText {
             user-select: text;
             position: relative;
             z-index: 1;
         }
-
+        
         .form-container { 
-            margin: 0 0 20px; /* 减少表单容器的上下间距 */
+            margin: 0 0 20px;
             touch-action: manipulation;
         }
-
+        
         .form-container iframe {
             display: block;
             width: 100%;
@@ -49,75 +48,76 @@
             max-width: 100%;
             height: 600px;
         }
-
-        /* 2. 大幅压缩event-info的间距 */
+        
         .event-info { 
-            margin: 0; /* 移除默认margin */
+            margin: 0;
             color: #333; 
-            font-size: 18px; /* 稍微缩小字体 */
+            font-size: 18px;
             line-height: 1.1;
         }
-
+        
         .event-info p {
-            margin: 3px 0; /* 极小的段落间距 */
+            margin: 3px 0;
         }
-
-        /* 3. 压缩输入框组的间距 */
+        
         .input-group {
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 8px;
-            margin: 8px auto; /* 减少上下margin */
+            margin: 8px auto;
             max-width: 520px;
             width: 100%;
         }
-
+        
         .event-info input {
             -webkit-appearance: none;
             border-radius: 4px;
             border: 1px solid #ccc;
             box-sizing: border-box;
             flex: 1;
-            font-size: 16px; /* 缩小输入框字体 */
-            padding: 8px; /* 减少输入框内边距 */
+            font-size: 16px;
+            padding: 8px;
             text-align: center;
             transition: border-color 0.2s;
         }
-
+        
+        /* 复制成功时的输入框样式：颜色改为#04787c */
         .event-info input.copied {
-            border-color: #107c10;
-            background-color: #f0fff0;
+            border-color: #04787c;
+            background-color: #e6f7f7;
         }
-
+        
+        /* 复制按钮样式：颜色改为#04787c */
         .copy-btn {
-            background-color: #0078d4;
+            background-color: #04787c;
             color: white;
             border: none;
             border-radius: 4px;
-            padding: 8px 16px; /* 缩小按钮内边距 */
-            font-size: 14px; /* 缩小按钮字体 */
+            padding: 8px 16px;
+            font-size: 14px;
             font-weight: 500;
             cursor: pointer;
             white-space: nowrap;
             transition: background-color 0.2s;
         }
-
+        
         .copy-btn:hover {
-            background-color: #005a9e;
+            background-color: #035f62; /* 稍深的同色系 */
         }
-
+        
         .copy-btn:active {
-            background-color: #004578;
+            background-color: #024a4d; /* 更深的同色系 */
         }
-
+        
+        /* 主跳转按钮样式：颜色改为#04787c */
         .redirect-btn {
-            display: inline-block; margin-top: 15px; padding: 12px 25px; /* 缩小按钮 */
-            background-color: #0078d4; color: white; text-decoration: none; border-radius: 5px;
+            display: inline-block; margin-top: 15px; padding: 12px 25px;
+            background-color: #04787c; color: white; text-decoration: none; border-radius: 5px;
             font-size: 16px; font-weight: 500;
         }
-        .redirect-btn:hover { background-color: #005a9e; }
-
+        .redirect-btn:hover { background-color: #035f62; }
+        
         .tip { color: #666; margin-top: 20px; font-size: 13px; line-height: 1.4; }
     </style>
 </head>
